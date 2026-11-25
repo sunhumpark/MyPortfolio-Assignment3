@@ -1,0 +1,14 @@
+import {useEffect,useState} from 'react';
+import {api} from '../api.js';
+import {useAuth} from '../auth.jsx';
+export default function CrudPage({title,endpoint,fields,privateRead=false}) {
+ const {user}=useAuth(); const admin=user?.role==='admin';
+ const blank=()=>Object.fromEntries(fields.map(f=>[f.key,'']));
+ const [form,setForm]=useState(blank); const [rows,setRows]=useState([]); const [editing,setEditing]=useState(null); const [error,setError]=useState(''); const [notice,setNotice]=useState(''); const [busy,setBusy]=useState(false);
+ async function load(){setRows(await api(endpoint));}
+ useEffect(()=>{setRows([]);setError('');setNotice('');setEditing(null);setForm(blank());if(!privateRead||user)load().catch(e=>setError(e.message));},[endpoint,user]);
+ async function save(e){e.preventDefault();setBusy(true);setError('');setNotice('');try{await api(editing?`${endpoint}/${editing}`:endpoint,editing?'PUT':'POST',form);setForm(blank());setEditing(null);await load();setNotice('Saved successfully.');}catch(e){setError(e.message);}finally{setBusy(false);}}
+ async function remove(id){if(!window.confirm('Delete this record?'))return;setBusy(true);setError('');try{await api(`${endpoint}/${id}`,'DELETE');if(editing===id){setEditing(null);setForm(blank());}await load();setNotice('Deleted successfully.');}catch(e){setError(e.message);}finally{setBusy(false);}}
+ function edit(row){setEditing(row._id);setForm(Object.fromEntries(fields.map(f=>[f.key,f.type==='date'?(row[f.key]||'').slice(0,10):row[f.key]||''])));}
+ return <section className="assignment-panel"><h1>{title}</h1><p>{admin?'Administrator: create, read, update and delete.':privateRead&&!user?'Sign in to view records.':'Read-only access.'}</p>{error&&<p role="alert">{error}</p>}{notice&&<p role="status">{notice}</p>}{admin&&<form onSubmit={save}><h2>{editing?'Edit record':'Add record'}</h2>{fields.map(f=><label key={f.key}>{f.label}{f.type==='textarea'?<textarea required={!f.optional} value={form[f.key]} onChange={e=>setForm({...form,[f.key]:e.target.value})}/>:<input required={!f.optional} type={f.type||'text'} value={form[f.key]} onChange={e=>setForm({...form,[f.key]:e.target.value})}/>}</label>)}<button disabled={busy}>{editing?'Save changes':'Add record'}</button>{editing&&<button type="button" onClick={()=>{setEditing(null);setForm(blank());}}>Cancel</button>}</form>}{(!privateRead||user)&&<div className="assignment-records">{rows.length===0&&<p>No records yet.</p>}{rows.map(row=><article key={row._id} className="project-card">{fields.map(f=><p key={f.key}><strong>{f.label}: </strong>{f.type==='date'?(row[f.key]||'').slice(0,10):row[f.key]}</p>)}{admin&&<><button disabled={busy} onClick={()=>edit(row)}>Edit</button> <button disabled={busy} onClick={()=>remove(row._id)}>Delete</button></>}</article>)}</div>}</section>;
+}

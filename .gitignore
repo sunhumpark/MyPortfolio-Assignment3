@@ -1,0 +1,8 @@
+.env
+node_modules/
+client_backup/
+contacts.http
+client/.git_backup/
+dist/
+server/models/test-user.js
+server/models/user.model.backup.js
